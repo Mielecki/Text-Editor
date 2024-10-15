@@ -2,33 +2,54 @@ from tkinter import Tk, Frame, Label, Canvas, Scrollbar
 from string import ascii_letters
 
 class Line:
-    def __init__(self, master):
+    def __init__(self, master, line):
         self.frame = Frame(master, borderwidth=0)
         self.content = []
         self.length = 0
-        self.__pack()
+        self.line = line
+        self.pack(line)
     
-    def __pack(self):
-        self.frame.pack(side='top', anchor='nw', pady=1)
+    def pack(self, line):
+        self.frame.grid(row = line, sticky="w")
+
+    def __get_character(self, index):
+        return self.content[index].cget("text")
+    
+    def __set_character(self, index, character):
+        if character == "\n":
+            character = " "
+        self.content[index].config(text=character)
     
     def add_character(self, character, label, index):
         self.content.append(label)
         self.length += 1
 
         for i in range(self.length-1, index, -1):
-            self.content[i].config(text=self.content[i-1].cget("text"))
+            self.__set_character(i, self.__get_character(i-1))
         
-        if character != "\n":
-            self.content[index].config(text=character)
+        self.__set_character(index, character)
 
     def change_label_color(self, index, color):
         self.content[index].config(background = color)
 
     def remove_character(self, index):
         for i in range(index, self.length-1):
-            self.content[i].config(text=self.content[i+1].cget("text"))
+            self.__set_character(i, self.__get_character(i+1))
         self.length -= 1
         self.content.pop().destroy()
+
+    def move_labels(self, dest, start_index):
+        for i in range(start_index, self.length):
+            label = Label(dest.frame, font=("UbuntuMono", 24), borderwidth=0, background="white")
+            label.pack(side="left")
+            dest.add_character(self.__get_character(i), label, i - start_index)
+        
+        for _ in range(start_index, self.length):
+            self.content.pop().destroy()
+        
+        dest.length = self.length - start_index
+        self.length = start_index
+
 
 class Window:
 
@@ -56,9 +77,9 @@ class Window:
         self.__position = 0
         self.__new_piece = ""
         self.__inserted_recently = False
-        self.__lines = [Line(self.__content)]
         self.__current_line = 0
         self.__line_position = 0
+        self.__lines = [Line(self.__content, self.__current_line)]
         self.__last_cursor = (0, 0)
         self.__line_changed = False
 
@@ -82,19 +103,20 @@ class Window:
             self.__key_history.add(key)
             self.__key_events[key]()
 
-        print(self.__piece_table)
-
     def __keyup(self, event):
         key = event.keysym
         if key in self.__key_history:
             self.__key_history.remove(key)
 
     def __create_label(self):
-        label = Label(self.__lines[self.__current_line].frame, font=("Helvetica", 24), borderwidth=0, background="white")
+        label = Label(self.__lines[self.__current_line].frame, font=("UbuntuMono", 24), borderwidth=0, background="white")
         label.pack(side="left")
         return label
 
     def __update_new_piece(self, character):
+        if self.__inserted_recently:
+            self.__inserted_recently = False
+            self.__insert_new_piece()
         self.__lines[self.__current_line].add_character(character, self.__create_label(), self.__line_position)
         self.__line_position += 1
         self.__highlight_cursor()
@@ -102,10 +124,7 @@ class Window:
         self.__inserted_recently = False
     
     def __insert_new_piece(self, character = None):
-        if character == '\n':
-            self.__new_line()
-            self.__inserted_recently = False
-        if not self.__inserted_recently:
+        if not self.__inserted_recently or character == '\n':
             self.__piece_table.insert(self.__position, self.__new_piece)
             self.__position += len(self.__new_piece)
             self.__new_piece = ""
@@ -114,15 +133,27 @@ class Window:
             self.__new_piece += character
             self.__lines[self.__current_line].add_character(character, self.__create_label(), self.__line_position)
             self.__line_position += 1
-            self.__highlight_cursor()
             self.__line_changed = False
+
+        if character == '\n':
+            self.__new_line()
+        
+        if character is not None:
+            self.__highlight_cursor()
+
+    def __rearrange_lines(self):
+        for i, line in enumerate(self.__lines):
+            line.pack(i)
         
     def __new_line(self):
-        self.__line_position = 0
         self.__current_line += 1
         self.__line_changed = True
-        if self.__current_line >= len(self.__lines):
-            self.__lines.append(Line(self.__content))
+        self.__lines.insert(self.__current_line, Line(self.__content, self.__current_line))
+        self.__rearrange_lines()
+        self.__lines[self.__current_line-1].move_labels(self.__get_current_line(), self.__line_position)
+
+        self.__line_position = 0
+
         
     def __move_cursor(self, direction):
         if self.__new_piece:
@@ -133,20 +164,47 @@ class Window:
                 self.__line_position -= 1
                 self.__highlight_cursor()
         elif direction == "right":
-            if self.__line_position < self.__lines[self.__current_line].length:
+            if self.__line_position < self.__lines[self.__current_line].length-1 or (self.__current_line == len(self.__lines)-1 and self.__line_position < self.__lines[self.__current_line].length):
                 self.__position += 1
                 self.__line_position += 1
                 self.__highlight_cursor()
-    
+        elif direction == "up":
+            if self.__current_line == 0:
+                return
+            new_line_position = self.__line_position
+            new_position_change = self.__lines[self.__current_line - 1].length
+            if self.__line_position > self.__lines[self.__current_line - 1].length-1:
+                new_line_position = self.__lines[self.__current_line - 1].length-1
+                new_position_change = self.__line_position
+            self.__position -= new_position_change
+            self.__line_position = new_line_position
+            self.__current_line -= 1
+            self.__line_changed = True
+            self.__highlight_cursor()
+            self.__line_changed = False
+        elif direction == "down":
+            if self.__current_line == len(self.__lines) - 1:
+                return
+            new_line_position = self.__line_position
+            new_position_change = self.__lines[self.__current_line].length
+            if self.__line_position > self.__lines[self.__current_line + 1].length-1:
+                new_line_position = self.__lines[self.__current_line + 1].length-1
+                new_position_change += self.__lines[self.__current_line + 1].length - self.__line_position
+            self.__position += new_position_change
+            self.__line_position = new_line_position
+            self.__current_line += 1
+            self.__line_changed = True
+            self.__highlight_cursor()
+            self.__line_changed = False
+
     def __remove_character_backspace(self):
         self.__insert_new_piece()
         if self.__line_position > 0:
             self.__piece_table.delete(self.__position-1, 1)
             self.__lines[self.__current_line].remove_character(self.__line_position-1)
-            if self.__line_position > self.__lines[self.__current_line].length:
-                self.__line_position -= 1
-                self.__position -= 1
-                self.__highlight_cursor()
+            self.__line_position -= 1
+            self.__position -= 1
+            self.__highlight_cursor()
 
 
     def __create_events(self):
@@ -157,12 +215,13 @@ class Window:
                            "Left": lambda: self.__move_cursor("left"),
                            "Right": lambda: self.__move_cursor("right"),
                            "BackSpace": lambda: self.__remove_character_backspace(),
+                           "Up": lambda: self.__move_cursor("up"),
+                           "Down": lambda: self.__move_cursor("down"),
                            })
-        #             "Shift_L": lambda: False,
         return key_events
     
     def __highlight_cursor(self):
-        if self.__last_cursor[1] < self.__get_current_line().length or self.__line_changed:
+        if (self.__last_cursor[1] < self.__get_current_line().length or self.__line_changed) and self.__last_cursor[1] != -1:
             self.__lines[self.__last_cursor[0]].change_label_color(self.__last_cursor[1], "white")
         if self.__line_position > 0:
             self.__lines[self.__current_line].change_label_color(self.__line_position-1, "gray")
