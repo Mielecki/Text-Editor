@@ -99,7 +99,7 @@ class Cursor:
         return +new_position_change
     
     def move_right(self):
-        if self.__line_position == self.__line.length or (self.__line.is_last and self.__line_position == self.__line.length + 1):
+        if (not self.__line.is_last and self.__line_position + 1 == self.__line.length) or self.__line_position == self.__line.length:
             return 0
         self.__line_position += 1
         self.__line_changed = False
