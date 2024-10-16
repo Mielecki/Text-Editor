@@ -174,7 +174,10 @@ class Window:
         if not key in self.__key_history:
             self.__key_history.add(key)
             try:
-                self.__key_events[key]()
+                if "Control_L" in self.__key_history:
+                    self.__key_events[f"Control_L+{key}"]()
+                else:
+                    self.__key_events[key]()
             except KeyError:
                 pass
 
@@ -251,6 +254,10 @@ class Window:
             self.__get_current_line().remove_character(self.__cursor.get_line_postion()-1)
             self.__position += self.__cursor.move_left()
 
+    def  __save_file(self):
+        self.__insert_new_piece()
+        with open("file.txt", 'w') as writer:
+            writer.write(self.__piece_table.get_buffer())
 
     def __create_events(self):
         key_events = {}
@@ -298,6 +305,7 @@ class Window:
                            "Up": lambda: self.__move_cursor("up"),
                            "Down": lambda: self.__move_cursor("down"),
                            })
+        key_events.update({"Control_L+s": lambda: self.__save_file()})
         return key_events
 
     
