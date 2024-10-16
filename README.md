@@ -5,7 +5,6 @@ The project is a basic text editor implemented using Python's `tkinter` library 
 
 ## TODO
 - Implement undo/redo operations,
-- Map missing keys,
 - Render only visible text,
 - Add file loading and saving,
 - Refactor code,
