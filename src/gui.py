@@ -173,7 +173,10 @@ class Window:
         key = event.keysym
         if not key in self.__key_history:
             self.__key_history.add(key)
-            self.__key_events[key]()
+            try:
+                self.__key_events[key]()
+            except KeyError:
+                pass
 
     def __keyup(self, event):
         key = event.keysym
@@ -236,7 +239,6 @@ class Window:
             self.__position += change
             if change: self.__current_line -= 1
         elif direction == "down":
-            print(self.__get_current_line().is_last)
             if self.__get_current_line().is_last: return
             change = self.__cursor.move_down(self.__lines[self.__current_line + 1])
             self.__position += change
@@ -252,7 +254,42 @@ class Window:
 
     def __create_events(self):
         key_events = {}
-        key_events = {x: lambda x=x: self.__update_new_piece(x) for x in ascii_letters}
+        key_events.update({x: lambda x=x: self.__update_new_piece(x) for x in ascii_letters})
+        key_events.update({x: lambda x=x: self.__update_new_piece(x) for x in "1234567890"})
+        key_events.update({"bracketleft": lambda: self.__update_new_piece("["),
+                           "bracketright": lambda: self.__update_new_piece("]"),
+                           "braceleft": lambda: self.__update_new_piece("{"),
+                           "braceright": lambda: self.__update_new_piece("}"),
+                           "parenleft": lambda: self.__update_new_piece("("),
+                           "parenright": lambda: self.__update_new_piece(")"),
+                           "exclam": lambda: self.__update_new_piece("!"),
+                           "quotedbl": lambda: self.__update_new_piece('"'),
+                           "numbersign": lambda: self.__update_new_piece("#"),
+                           "dollar": lambda: self.__update_new_piece("$"),
+                           "percent": lambda: self.__update_new_piece("%"),
+                           "ampersand": lambda: self.__update_new_piece("&"),
+                           "apostrophe": lambda: self.__update_new_piece("'"),
+                           "asterisk": lambda: self.__update_new_piece("*"),
+                           "plus": lambda: self.__update_new_piece("+"),
+                           "comma": lambda: self.__update_new_piece(","),
+                           "minus": lambda: self.__update_new_piece("-"),
+                           "period": lambda: self.__update_new_piece("."),
+                           "slash": lambda: self.__update_new_piece("/"),
+                           "colon": lambda: self.__update_new_piece(":"),
+                           "semicolon": lambda: self.__update_new_piece(";"),
+                           "less": lambda: self.__update_new_piece("<"),
+                           "equal": lambda: self.__update_new_piece("="),
+                           "greater": lambda: self.__update_new_piece(">"),
+                           "question": lambda: self.__update_new_piece("?"),
+                           "at": lambda: self.__update_new_piece("@"),
+                           "backslash": lambda: self.__update_new_piece("\\"),
+                           "asciicircum": lambda: self.__update_new_piece("^"),
+                           "underscore": lambda: self.__update_new_piece("_"),
+                           "quoteleft": lambda: self.__update_new_piece("`"),
+                           "bar": lambda: self.__update_new_piece("|"),
+                           "asciitilde": lambda: self.__update_new_piece("~"),
+                           "grave": lambda: self.__update_new_piece("`"),
+                           })
         key_events.update({"space": lambda: self.__insert_new_piece(" "),
                            "Return": lambda: self.__insert_new_piece("\n"),
                            "Left": lambda: self.__move_cursor("left"),
